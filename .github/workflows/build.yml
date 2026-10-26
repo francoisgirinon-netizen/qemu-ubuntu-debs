@@ -1,0 +1,89 @@
+name: Build QEMU .deb
+
+on:
+  workflow_dispatch:
+    inputs:
+      qemu_version:
+        description: "QEMU version (empty = latest stable from download.qemu.org)"
+        required: false
+        default: ""
+      force:
+        description: "Rebuild and replace the release if it already exists"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 4 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
+    steps:
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.qemu_version }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          version="${INPUT_VERSION}"
+          if [ -z "${version}" ]; then
+            version="$(curl -sfL https://download.qemu.org/ \
+              | grep -oE 'qemu-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz' \
+              | sed -E 's/^qemu-(.*)\.tar\.xz$/\1/' | sort -uV | tail -1)"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if gh release view "qemu-${version}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 && [ "${FORCE}" != "true" ]; then
+            echo "Release qemu-${version} already exists, nothing to do."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: resolve
+    if: needs.resolve.outputs.build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ["22.04", "24.04"]
+    runs-on: ubuntu-latest
+    container: ubuntu:${{ matrix.ubuntu }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: bash build-deb.sh "${{ needs.resolve.outputs.version }}" out
+      - name: Install and smoke-test the package
+        run: |
+          apt-get install -y -qq ./out/*.deb
+          qemu-system-aarch64 --version | tee /dev/stderr | grep -q "version ${{ needs.resolve.outputs.version }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-ubuntu${{ matrix.ubuntu }}
+          path: out/*.deb
+          if-no-files-found: error
+
+  release:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: |
+          cd dist
+          sha256sum *.deb > SHA256SUMS
+          cat SHA256SUMS
+          gh release delete "qemu-${VERSION}" --repo "${GITHUB_REPOSITORY}" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "qemu-${VERSION}" *.deb SHA256SUMS --repo "${GITHUB_REPOSITORY}" \
+            --title "QEMU ${VERSION}" \
+            --notes "Upstream QEMU ${VERSION} aarch64 system emulator for Ubuntu 22.04 and 24.04. Installs in /opt/qemu-${VERSION}, linked in /usr/local/bin. See README."
