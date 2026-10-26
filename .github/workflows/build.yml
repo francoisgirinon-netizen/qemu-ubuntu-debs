@@ -15,7 +15,7 @@ on:
     - cron: "0 4 * * *"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   resolve:
@@ -36,6 +36,10 @@ jobs:
               | grep -oE 'qemu-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz' \
               | sed -E 's/^qemu-(.*)\.tar\.xz$/\1/' | sort -uV | tail -1)"
           fi
+          if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid QEMU version '${version}', expected X.Y.Z"
+            exit 1
+          fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           if gh release view "qemu-${version}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 && [ "${FORCE}" != "true" ]; then
             echo "Release qemu-${version} already exists, nothing to do."
@@ -53,19 +57,21 @@ jobs:
         ubuntu: ["22.04", "24.04", "26.04"]
     runs-on: ubuntu-latest
     container: ubuntu:${{ matrix.ubuntu }}
+    env:
+      VERSION: ${{ needs.resolve.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - name: Build
         env:
           SCCACHE_GHA_ENABLED: "true"
         run: |
-          bash build-deb.sh "${{ needs.resolve.outputs.version }}" out
+          bash build-deb.sh "${VERSION}" out
           sccache --show-stats
       - name: Install and smoke-test the package
         run: |
           apt-get install -y -qq ./out/*.deb
-          qemu-system-aarch64 --version | tee /dev/stderr | grep -q "version ${{ needs.resolve.outputs.version }}"
+          qemu-system-aarch64 --version | tee /dev/stderr | grep -q "version ${VERSION}"
       - uses: actions/upload-artifact@v4
         with:
           name: deb-ubuntu${{ matrix.ubuntu }}
@@ -75,6 +81,8 @@ jobs:
   release:
     needs: [resolve, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
