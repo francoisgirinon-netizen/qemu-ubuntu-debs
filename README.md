@@ -21,7 +21,8 @@ The Canonical server-backports PPA (QEMU 9.0.2) has the same bug.
 
 ## Package
 
-- Name: `qemu-upstream-aarch64`, version `<qemu>-1~ubuntu<release>`.
+- Name: `qemu-upstream-aarch64`, version `<qemu>-1~ubuntu<release>`, file
+  `qemu-upstream-aarch64_<qemu>-1_ubuntu<release>_amd64.deb`.
 - Unmodified upstream source from download.qemu.org, built with
   `--target-list=aarch64-softmmu --enable-virtfs`.
 - Installed in `/opt/qemu-<version>`, with `qemu-system-aarch64` linked in `/usr/local/bin`,
@@ -38,8 +39,8 @@ a `SHA256SUMS` file.
 ## Install
 
 ```bash
-curl -LO https://github.com/francoisgirinon-netizen/qemu-ubuntu-debs/releases/download/qemu-11.1.2/qemu-upstream-aarch64_11.1.2-1~ubuntu24.04_amd64.deb
-sudo apt install ./qemu-upstream-aarch64_11.1.2-1~ubuntu24.04_amd64.deb
+curl -LO https://github.com/francoisgirinon-netizen/qemu-ubuntu-debs/releases/download/qemu-11.1.2/qemu-upstream-aarch64_11.1.2-1_ubuntu24.04_amd64.deb
+sudo apt install ./qemu-upstream-aarch64_11.1.2-1_ubuntu24.04_amd64.deb
 qemu-system-aarch64 --version
 ```
 
@@ -51,7 +52,7 @@ With Ansible, pin the version; the checksum is read from the release's `SHA256SU
   vars:
     qemu_version: "11.1.2"
     qemu_release: "https://github.com/francoisgirinon-netizen/qemu-ubuntu-debs/releases/download/qemu-{{ qemu_version }}"
-    qemu_deb: "qemu-upstream-aarch64_{{ qemu_version }}-1~ubuntu{{ ansible_distribution_version }}_amd64.deb"
+    qemu_deb: "qemu-upstream-aarch64_{{ qemu_version }}-1_ubuntu{{ ansible_distribution_version }}_amd64.deb"
   tasks:
     - name: Download QEMU {{ qemu_version }}
       ansible.builtin.get_url:

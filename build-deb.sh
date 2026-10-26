@@ -76,7 +76,9 @@ Description: Upstream QEMU ${VERSION} system emulator (${TARGETS})
  The distribution packages are left untouched.
 EOF
 
-DEB="${OUT}/${PACKAGE}_${DEB_VERSION}_amd64.deb"
+# GitHub release assets cannot contain "~", so the file name uses "_ubuntu" while the
+# package version keeps "~ubuntu" for apt ordering.
+DEB="${OUT}/${PACKAGE}_${VERSION}-1_ubuntu${UBUNTU}_amd64.deb"
 dpkg-deb --build --root-owner-group "${STAGE}" "${DEB}"
 dpkg-deb --info "${DEB}" | sed -n '/Package:/,/Depends:/p'
 "${STAGE}${PREFIX}/bin/qemu-system-aarch64" --version | head -1
