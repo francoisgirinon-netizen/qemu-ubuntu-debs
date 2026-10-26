@@ -81,9 +81,9 @@ jobs:
           VERSION: ${{ needs.resolve.outputs.version }}
         run: |
           cd dist
-          sha256sum *.deb > SHA256SUMS
+          sha256sum -- *.deb > SHA256SUMS
           cat SHA256SUMS
           gh release delete "qemu-${VERSION}" --repo "${GITHUB_REPOSITORY}" --yes --cleanup-tag 2>/dev/null || true
-          gh release create "qemu-${VERSION}" *.deb SHA256SUMS --repo "${GITHUB_REPOSITORY}" \
+          gh release create "qemu-${VERSION}" ./*.deb SHA256SUMS --repo "${GITHUB_REPOSITORY}" \
             --title "QEMU ${VERSION}" \
             --notes "Upstream QEMU ${VERSION} aarch64 system emulator for Ubuntu 22.04 and 24.04. Installs in /opt/qemu-${VERSION}, linked in /usr/local/bin. See README."
