@@ -43,19 +43,29 @@ sudo apt install ./qemu-upstream-aarch64_11.1.2-1~ubuntu24.04_amd64.deb
 qemu-system-aarch64 --version
 ```
 
-With Ansible:
+With Ansible, pin the version; the checksum is read from the release's `SHA256SUMS`:
 
 ```yaml
-- name: Download QEMU {{ qemu_version }}
-  ansible.builtin.get_url:
-    url: "https://github.com/francoisgirinon-netizen/qemu-ubuntu-debs/releases/download/qemu-{{ qemu_version }}/qemu-upstream-aarch64_{{ qemu_version }}-1~ubuntu{{ ansible_distribution_version }}_amd64.deb"
-    dest: "/var/tmp/qemu-upstream-aarch64_{{ qemu_version }}.deb"
-    checksum: "sha256:{{ qemu_deb_sha256 }}"
+- hosts: linux_builders
+  become: true
+  vars:
+    qemu_version: "11.1.2"
+    qemu_release: "https://github.com/francoisgirinon-netizen/qemu-ubuntu-debs/releases/download/qemu-{{ qemu_version }}"
+    qemu_deb: "qemu-upstream-aarch64_{{ qemu_version }}-1~ubuntu{{ ansible_distribution_version }}_amd64.deb"
+  tasks:
+    - name: Download QEMU {{ qemu_version }}
+      ansible.builtin.get_url:
+        url: "{{ qemu_release }}/{{ qemu_deb }}"
+        dest: "/var/tmp/{{ qemu_deb }}"
+        checksum: "sha256:{{ qemu_release }}/SHA256SUMS"
 
-- name: Install QEMU {{ qemu_version }}
-  ansible.builtin.apt:
-    deb: "/var/tmp/qemu-upstream-aarch64_{{ qemu_version }}.deb"
+    - name: Install QEMU {{ qemu_version }}
+      ansible.builtin.apt:
+        deb: "/var/tmp/{{ qemu_deb }}"
 ```
+
+Bumping QEMU is a change of `qemu_version`. Going back to the distribution QEMU is
+`apt remove qemu-upstream-aarch64`.
 
 ## Build locally
 
