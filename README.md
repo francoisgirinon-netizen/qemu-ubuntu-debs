@@ -7,7 +7,7 @@ emulator for Ubuntu LTS releases that ship an older one.
 |---|---|---|
 | 22.04 | 6.2 | yes |
 | 24.04 | 8.2.2 | yes |
-| 26.04 | 10.2 | not needed |
+| 26.04 | 10.2 (already fixed) | yes, to keep all LTS on the same version |
 
 ## Why
 

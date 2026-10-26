@@ -18,10 +18,26 @@ apt-get install -y -qq --no-install-recommends \
     libglib2.0-dev libpixman-1-dev libfdt-dev zlib1g-dev libcap-ng-dev libattr1-dev \
     flex bison xz-utils curl ca-certificates dpkg-dev lsb-release >/dev/null
 
+# QEMU's configure needs tomli, which is only in the standard library from Python 3.11.
+if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))'; then
+    apt-get install -y -qq --no-install-recommends python3-tomli >/dev/null
+fi
+
+# Compile through sccache when the caller provides it (the CI sets SCCACHE_GHA_ENABLED).
+if command -v sccache >/dev/null 2>&1; then
+    WRAPPERS="$(mktemp -d)"
+    for compiler in cc gcc c++ g++; do
+        printf '#!/bin/sh\nexec sccache /usr/bin/%s "$@"\n' "${compiler}" > "${WRAPPERS}/${compiler}"
+        chmod +x "${WRAPPERS}/${compiler}"
+    done
+    export PATH="${WRAPPERS}:${PATH}"
+fi
+
 UBUNTU="$(lsb_release -rs)"
 DEB_VERSION="${VERSION}-1~ubuntu${UBUNTU}"
 WORK="$(mktemp -d)"
 mkdir -p "${OUT}"
+OUT="$(cd "${OUT}" && pwd)"
 
 cd "${WORK}"
 curl -sfLO "https://download.qemu.org/qemu-${VERSION}.tar.xz"

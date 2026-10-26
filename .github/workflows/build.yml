@@ -50,13 +50,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ubuntu: ["22.04", "24.04"]
+        ubuntu: ["22.04", "24.04", "26.04"]
     runs-on: ubuntu-latest
     container: ubuntu:${{ matrix.ubuntu }}
     steps:
       - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Build
-        run: bash build-deb.sh "${{ needs.resolve.outputs.version }}" out
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          bash build-deb.sh "${{ needs.resolve.outputs.version }}" out
+          sccache --show-stats
       - name: Install and smoke-test the package
         run: |
           apt-get install -y -qq ./out/*.deb
@@ -86,4 +91,4 @@ jobs:
           gh release delete "qemu-${VERSION}" --repo "${GITHUB_REPOSITORY}" --yes --cleanup-tag 2>/dev/null || true
           gh release create "qemu-${VERSION}" ./*.deb SHA256SUMS --repo "${GITHUB_REPOSITORY}" \
             --title "QEMU ${VERSION}" \
-            --notes "Upstream QEMU ${VERSION} aarch64 system emulator for Ubuntu 22.04 and 24.04. Installs in /opt/qemu-${VERSION}, linked in /usr/local/bin. See README."
+            --notes "Upstream QEMU ${VERSION} aarch64 system emulator for Ubuntu 22.04, 24.04 and 26.04. Installs in /opt/qemu-${VERSION}, linked in /usr/local/bin. See README."
